@@ -1,30 +1,38 @@
 <?php
 // private/config/database.php
 
-// Cargador simple de variables desde un archivo .env en la raíz del proyecto
-function loadDotEnv($path)
-{
-    if (!file_exists($path) || !is_readable($path)) return;
-    $lines = file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-    foreach ($lines as $line) {
-        $line = trim($line);
-        if ($line === '' || strpos($line, '#') === 0) continue;
-        $pos = strpos($line, '=');
-        if ($pos === false) continue;
-        $name = trim(substr($line, 0, $pos));
-        $value = trim(substr($line, $pos + 1));
-        // Quitar comillas si existen (compatible con PHP < 8)
-        if (strlen($value) >= 2) {
-            $first = $value[0];
-            $last  = substr($value, -1);
-            if (($first === '"' && $last === '"') || ($first === "'" && $last === "'")) {
-                $value = substr($value, 1, -1);
+// Intentar cargar el autoloader de Composer si existe
+$autoloadPath = dirname(__DIR__, 2) . '/vendor/autoload.php';
+if (file_exists($autoloadPath)) {
+    require_once $autoloadPath;
+}
+
+// Cargador simple de variables desde .env (fallback si no hay phpdotenv)
+if (!function_exists('loadDotEnv')) {
+    function loadDotEnv($path)
+    {
+        if (!file_exists($path) || !is_readable($path)) return;
+        $lines = file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        foreach ($lines as $line) {
+            $line = trim($line);
+            if ($line === '' || strpos($line, '#') === 0) continue;
+            $pos = strpos($line, '=');
+            if ($pos === false) continue;
+            $name = trim(substr($line, 0, $pos));
+            $value = trim(substr($line, $pos + 1));
+            // Quitar comillas si existen (compatible con PHP < 8)
+            if (strlen($value) >= 2) {
+                $first = $value[0];
+                $last  = substr($value, -1);
+                if (($first === '"' && $last === '"') || ($first === "'" && $last === "'")) {
+                    $value = substr($value, 1, -1);
+                }
             }
-        }
-        // No sobreescribir si ya existe en entorno
-        if (getenv($name) === false) {
-            putenv($name . '=' . $value);
-            $_ENV[$name] = $value;
+            // No sobreescribir si ya existe en entorno
+            if (getenv($name) === false) {
+                putenv($name . '=' . $value);
+                $_ENV[$name] = $value;
+            }
         }
     }
 }
@@ -44,7 +52,11 @@ class Database {
 
         // Intentar cargar .env de la raíz del proyecto
         $envPath = dirname(__DIR__, 2) . '/.env';
-        if (function_exists('loadDotEnv')) {
+        // Si existe vlucas/phpdotenv (Composer), usarlo; si no, fallback
+        if (class_exists('Dotenv\\Dotenv')) {
+            $dotenv = Dotenv\Dotenv::createImmutable(dirname($envPath));
+            try { $dotenv->load(); } catch (Throwable $e) { /* ignorar */ }
+        } else if (function_exists('loadDotEnv')) {
             loadDotEnv($envPath);
         }
 
