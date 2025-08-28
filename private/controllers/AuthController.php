@@ -59,9 +59,24 @@ class AuthController {
                 $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
                 if (password_verify($password, $row['password'])) {
+                    // Resolver nombre de rol con varios fallbacks
+                    $resolvedRole = null;
+                    if (isset($row['nombre_rol']) && $row['nombre_rol']) {
+                        $resolvedRole = $row['nombre_rol'];
+                    } elseif (isset($row['rol']) && $row['rol']) {
+                        $resolvedRole = $row['rol'];
+                    } elseif (isset($row['rol_nombre']) && $row['rol_nombre']) {
+                        $resolvedRole = $row['rol_nombre'];
+                    } elseif (isset($row['id_rol'])) {
+                        $map = [1 => 'Admin', 2 => 'Gerente', 3 => 'Servicio al Cliente', 4 => 'Cajero'];
+                        $rid = (int)$row['id_rol'];
+                        $resolvedRole = $map[$rid] ?? 'Empleado';
+                    } else {
+                        $resolvedRole = 'Empleado';
+                    }
                     // La sesión ya fue iniciada en api.php
                     $_SESSION['user_id'] = $row['id'];
-                    $_SESSION['user_role'] = $row['nombre_rol'] ?? ($row['rol'] ?? ($row['rol_nombre'] ?? 'Empleado'));
+                    $_SESSION['user_role'] = $resolvedRole;
                     $_SESSION['user_name'] = $row['nombre'];
 
                     http_response_code(200);
@@ -70,7 +85,7 @@ class AuthController {
                         'user' => [
                             'id' => $row['id'],
                             'nombre' => $row['nombre'],
-                            'rol' => ($_SESSION['user_role'])
+                            'rol' => $resolvedRole
                         ]
                     ]);
                 } else {
