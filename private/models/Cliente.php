@@ -101,5 +101,3 @@ class Cliente {
         return false;
     }
 }
-?>
-?>
