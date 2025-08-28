@@ -24,12 +24,13 @@ class Prestamo {
     // Obtener todos los préstamos con filtro
     public function read($filter) {
         $query = "SELECT 
-                    p.id, p.id_cliente, c.nombre_completo as cliente_nombre, 
+                    p.id, p.id_cliente, c.nombre_completo as cliente_nombre, c.cedula as cliente_cedula,
                     p.monto_aprobado, p.estado, p.fecha_solicitud
                   FROM " . $this->table . " p
                   LEFT JOIN clientes c ON p.id_cliente = c.id
                   WHERE 
                     c.nombre_completo LIKE :filter OR 
+                    c.cedula LIKE :filter OR 
                     p.id LIKE :filter
                   ORDER BY p.fecha_solicitud DESC";
         

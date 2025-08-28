@@ -12,7 +12,7 @@ header("Expires: Sat, 01 Jan 2000 00:00:00 GMT");
 // Encabezados para permitir solicitudes CORS y asegurar respuesta JSON.
 header("Access-Control-Allow-Origin: *"); // En producción, debería ser más restrictivo
 header("Content-Type: application/json; charset=UTF-8");
-header("Access-Control-Allow-Methods: POST, GET, PUT, OPTIONS");
+header("Access-Control-Allow-Methods: POST, GET, PUT, DELETE, OPTIONS");
 header("Access-Control-Max-Age: 3600");
 header("Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With");
 
@@ -197,6 +197,21 @@ switch ($action) {
     case 'list_empleados':
         if (!has_permission(['Admin'])) deny_access();
         $empleadoController->list();
+        break;
+    case 'get_empleado':
+        if (!has_permission(['Admin'])) deny_access();
+        $id = isset($_GET['id']) ? intval($_GET['id']) : 0;
+        $empleadoController->get($id);
+        break;
+    case 'update_empleado':
+        if (!has_permission(['Admin'])) deny_access();
+        $id = isset($_GET['id']) ? intval($_GET['id']) : 0;
+        $empleadoController->update($id, $data);
+        break;
+    case 'delete_empleado':
+        if (!has_permission(['Admin'])) deny_access();
+        $id = isset($_GET['id']) ? intval($_GET['id']) : 0;
+        $empleadoController->delete($id);
         break;
 
     default:
