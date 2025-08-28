@@ -1,4 +1,3 @@
-
 <?php
 // public_html/api.php
 
@@ -45,8 +44,7 @@ function error_response($status, $code, $message, $details = null, $extra = []) 
         'error' => $code,
         'message' => $message,
     ], $extra);
-    // Mostrar detalles solo si está en modo debug y la función existe
-    if ($details !== null && (function_exists('app_debug') ? app_debug() : false)) {
+    if ($details !== null && app_debug()) {
         $resp['details'] = $details;
     }
     respond($status, $resp);
@@ -191,17 +189,7 @@ switch ($action) {
         break;
     case 'create_prestamo':
         if (!has_permission(['Admin', 'Servicio al Cliente'])) deny_access('No tiene permisos para crear préstamos.');
-        try {
-            if (!$data) {
-                error_response(400, 'INVALID_DATA', 'Datos inválidos o faltantes');
-            }
-            if (!isset($_SESSION['user_id'])) {
-                error_response(401, 'NO_SESSION', 'Sesión no iniciada');
-            }
-            $prestamoController->create($data);
-        } catch (Exception $e) {
-            error_response(500, 'CREATE_ERROR', 'Error al crear préstamo: ' . $e->getMessage());
-        }
+        $prestamoController->create($data);
         break;
     case 'update_prestamo_status':
         // Permitir a Admin y Gerente cualquier cambio.
@@ -261,22 +249,6 @@ switch ($action) {
         $id = isset($_GET['id']) ? intval($_GET['id']) : 0;
         $empleadoController->delete($id);
         break;
-
-            case 'get_amortizacion_by_prestamo':
-        if (!has_permission(['Admin', 'Cajero', 'Gerente'])) deny_access('No tiene permisos para consultar amortización.');
-        $id = isset($_GET['id']) ? intval($_GET['id']) : 0;
-        if ($id <= 0) {
-            http_response_code(400);
-            echo json_encode(['message' => 'ID de préstamo inválido']);
-            exit;
-        }
-        $amortizacion = new Amortizacion($db);
-        $stmt = $db->prepare("SELECT numero_cuota, monto_cuota, fecha_pago, estado FROM amortizaciones WHERE id_prestamo = :id ORDER BY numero_cuota ASC");
-        $stmt->bindParam(':id', $id);
-        $stmt->execute();
-        $cuotas = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        echo json_encode($cuotas);
-        exit;
 
     default:
         respond(404, ['message' => 'Acción no encontrada.']);

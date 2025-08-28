@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard de Gestión de Préstamos</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
@@ -12,6 +11,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.7.0/jspdf.plugin.autotable.min.js"></script>
 </head>
 <body class="bg-gray-100 text-gray-800">
 
@@ -156,6 +157,8 @@
                             </button>
                         </div>
                         <div class="overflow-x-auto">
+                            <button id="btn-print-prestamo" class="mb-4 bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg flex items-center"><i class="fas fa-print mr-2"></i> Imprimir Préstamo PDF</button>
+
                             <table class="w-full text-left">
                                 <thead>
                                     <tr class="bg-gray-100">
@@ -190,7 +193,9 @@
                             </button>
                         </div>
                         <div class="overflow-x-auto">
-                            <table class="w-full text-left">
+                                        <button id="btn-print-amortizacion" class="mb-4 bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg flex items-center"><i class="fas fa-print mr-2"></i> Imprimir Amortización PDF</button>
+                                        <button id="btn-print-amortizacion-native" class="mb-4 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg flex items-center"><i class="fas fa-print mr-2"></i> Imprimir con Google</button>
+                                        <table class="w-full text-left">
                                 <thead>
                                     <tr class="bg-gray-100">
                                         <th class="p-3">ID Préstamo</th>
@@ -243,6 +248,7 @@
                         </div>
                         <div class="lg:col-span-2 bg-white p-6 rounded-xl shadow-lg">
                             <h4 class="font-semibold mb-4">Pagos Recientes</h4>
+                            <button id="btn-print-pagos" class="mb-4 bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg flex items-center"><i class="fas fa-print mr-2"></i> Imprimir Pagos PDF</button>
                             <div class="overflow-x-auto">
                                 <table class="w-full text-left">
                                     <thead>
@@ -483,6 +489,166 @@
     
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+    // Renderizar tabla de amortización en el modal de solicitud de préstamo
+    function renderAmortizationTable(amortizacion) {
+        const tbody = document.getElementById('amortization-table-body');
+        tbody.innerHTML = '';
+        if (!Array.isArray(amortizacion) || amortizacion.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center p-8 text-gray-500">No hay tabla de amortización disponible.</td></tr>';
+            return;
+        }
+        amortizacion.forEach(a => {
+            const row = `<tr>
+                <td class="p-2">${a.numero_cuota}</td>
+                <td class="p-2">${a.fecha_pago}</td>
+                <td class="p-2">$${a.monto_cuota}</td>
+                <td class="p-2">$${a.capital}</td>
+                <td class="p-2">$${a.interes}</td>
+                <td class="p-2">$${a.saldo_pendiente}</td>
+            </tr>`;
+            tbody.innerHTML += row;
+        });
+    }
+
+    // Ejemplo de uso: después de calcular la amortización
+    // renderAmortizationTable(amortizacion);
+    // Imprimir amortización usando la función nativa del navegador
+    document.getElementById('btn-print-amortizacion-native').addEventListener('click', () => {
+        // Solo imprime la tabla de amortización en pantalla
+        const table = document.getElementById('amortization-preview');
+        if (!table) {
+            alert('No hay tabla de amortización para imprimir.');
+            return;
+        }
+        // Crear ventana temporal para imprimir solo la tabla
+        const printWindow = window.open('', '', 'width=900,height=600');
+        printWindow.document.write('<html><head><title>Imprimir Amortización</title>');
+        printWindow.document.write('<link rel="stylesheet" href="styles.css">');
+        printWindow.document.write('</head><body>');
+        printWindow.document.write('<h2>Tabla de Amortización</h2>');
+        printWindow.document.write(table.innerHTML);
+        printWindow.document.write('</body></html>');
+        printWindow.document.close();
+        printWindow.focus();
+        printWindow.print();
+        printWindow.close();
+    });
+    // Imprimir amortización como PDF
+    document.getElementById('btn-print-amortizacion').addEventListener('click', async () => {
+        const filter = document.getElementById('prestamo-search').value;
+        const response = await fetch(`${API_URL}?action=list_prestamos&filter=${encodeURIComponent(filter)}`);
+        const prestamos = await response.json();
+        if (!Array.isArray(prestamos) || prestamos.length === 0) {
+            alert('No hay préstamos para imprimir amortización.');
+            return;
+        }
+        const p = prestamos[0];
+        // Obtener amortización del préstamo
+        const amortRes = await fetch(`${API_URL}?action=get_amortizacion&id=${p.id}`);
+        const amortizacion = await amortRes.json();
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        doc.setFontSize(16);
+        doc.text('Tabla de Amortización', 14, 18);
+        doc.setFontSize(12);
+        doc.text(`ID Préstamo: ${p.id}`, 14, 28);
+        doc.text(`Cliente: ${p.cliente_nombre || ''}`, 14, 36);
+        doc.text(`Monto: $${p.monto_aprobado}`, 14, 44);
+        doc.text(`Estado: ${p.estado}`, 14, 52);
+        doc.text(`Fecha Solicitud: ${p.fecha_solicitud}`, 14, 60);
+        if (Array.isArray(amortizacion) && amortizacion.length > 0) {
+            doc.autoTable({
+                startY: 70,
+                head: [['#', 'Fecha Pago', 'Monto', 'Capital', 'Interés', 'Saldo', 'Estado']],
+                body: amortizacion.map(a => [
+                    a.numero_cuota,
+                    a.fecha_pago,
+                    `$${a.monto_cuota}`,
+                    `$${a.capital}`,
+                    `$${a.interes}`,
+                    `$${a.saldo_pendiente}`,
+                    a.estado
+                ]),
+                theme: 'grid',
+                styles: { fontSize: 10 }
+            });
+        } else {
+            doc.text('No hay tabla de amortización disponible.', 14, 70);
+        }
+        doc.save(`amortizacion_prestamo_${p.id}.pdf`);
+    });
+    // Imprimir pagos recientes como PDF
+    document.getElementById('btn-print-pagos').addEventListener('click', async () => {
+        const response = await fetch(`${API_URL}?action=list_pagos_recientes&limit=50`);
+        const pagos = await response.json();
+        if (!Array.isArray(pagos) || pagos.length === 0) {
+            alert('No hay pagos para imprimir.');
+            return;
+        }
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        doc.setFontSize(16);
+        doc.text('Pagos Recientes', 14, 18);
+        doc.autoTable({
+            startY: 28,
+            head: [['ID Pago', 'ID Préstamo', 'Monto', 'Fecha', 'Cajero']],
+            body: pagos.map(p => [
+                p.pago_id,
+                p.prestamo_id,
+                `$${p.monto_pagado}`,
+                new Date(p.fecha_pago).toLocaleString(),
+                p.cajero || '—'
+            ]),
+            theme: 'grid',
+            styles: { fontSize: 10 }
+        });
+        doc.save('pagos_recientes.pdf');
+    });
+    // Imprimir préstamo y amortización como PDF
+    document.getElementById('btn-print-prestamo').addEventListener('click', async () => {
+        const filter = document.getElementById('prestamo-search').value;
+        const response = await fetch(`${API_URL}?action=list_prestamos&filter=${encodeURIComponent(filter)}`);
+        const prestamos = await response.json();
+        if (!Array.isArray(prestamos) || prestamos.length === 0) {
+            alert('No hay préstamos para imprimir.');
+            return;
+        }
+        const p = prestamos[0];
+        // Obtener amortización del préstamo
+        const amortRes = await fetch(`${API_URL}?action=get_amortizacion&id=${p.id}`);
+        const amortizacion = await amortRes.json();
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        doc.setFontSize(16);
+        doc.text('Detalle de Préstamo', 14, 18);
+        doc.setFontSize(12);
+        doc.text(`ID: ${p.id}`, 14, 28);
+        doc.text(`Cliente: ${p.cliente_nombre || ''}`, 14, 36);
+        doc.text(`Monto: $${p.monto_aprobado}`, 14, 44);
+        doc.text(`Estado: ${p.estado}`, 14, 52);
+        doc.text(`Fecha Solicitud: ${p.fecha_solicitud}`, 14, 60);
+        if (Array.isArray(amortizacion) && amortizacion.length > 0) {
+            doc.text('Tabla de Amortización', 14, 70);
+            doc.autoTable({
+                startY: 75,
+                head: [['#', 'Fecha Pago', 'Monto', 'Capital', 'Interés', 'Saldo', 'Estado']],
+                body: amortizacion.map(a => [
+                    a.numero_cuota,
+                    a.fecha_pago,
+                    `$${a.monto_cuota}`,
+                    `$${a.capital}`,
+                    `$${a.interes}`,
+                    `$${a.saldo_pendiente}`,
+                    a.estado
+                ]),
+                theme: 'grid',
+                styles: { fontSize: 10 }
+            });
+        } else {
+            doc.text('No hay tabla de amortización disponible.', 14, 70);
+        }
+        doc.save(`prestamo_${p.id}.pdf`);
+    });
     let currentUser = null;
     
     // La URL base de tu API. Ajusta la ruta si es necesario.
@@ -754,30 +920,29 @@ document.addEventListener('DOMContentLoaded', function () {
     
     function getActionButtons(prestamo) {
         const role = (currentUser && currentUser.rol) || '';
-        // Para Cajero: solo permitir Desembolsar cuando esté Aprobado
-        if (role === 'Cajero') {
-            if (prestamo.estado === 'Aprobado') {
-                return `
-                    <button data-id="${prestamo.id}" data-action="Desembolsado" class="action-btn text-xs bg-blue-500 hover:bg-blue-600 text-white font-bold py-1 px-2 rounded">Desembolsar</button>
-                `;
-            }
-            return `<button class=\"text-blue-500 hover:text-blue-700\"><i class=\"fas fa-file-alt\"></i> Ver</button>`;
+        // Botones de acción por registro, incluyendo impresión
+        let buttons = '';
+        // Acciones según rol y estado
+        if (role === 'Cajero' && prestamo.estado === 'Aprobado') {
+            buttons += `<button data-id="${prestamo.id}" data-action="Desembolsado" class="action-btn text-xs bg-blue-500 hover:bg-blue-600 text-white font-bold py-1 px-2 rounded">Desembolsar</button>`;
         }
-
-        // Resto de roles: comportamiento actual
-        switch(prestamo.estado) {
-            case 'Pendiente':
-                return `
-                    <button data-id="${prestamo.id}" data-action="Aprobado" class="action-btn text-xs bg-green-500 hover:bg-green-600 text-white font-bold py-1 px-2 rounded">Aprobar</button>
-                    <button data-id="${prestamo.id}" data-action="Rechazado" class="action-btn text-xs bg-red-500 hover:bg-red-600 text-white font-bold py-1 px-2 rounded ml-1">Rechazar</button>
-                `;
-            case 'Aprobado':
-                return `
-                    <button data-id="${prestamo.id}" data-action="Desembolsado" class="action-btn text-xs bg-blue-500 hover:bg-blue-600 text-white font-bold py-1 px-2 rounded">Desembolsar</button>
-                `;
-            default:
-                return `<button class="text-blue-500 hover:text-blue-700"><i class="fas fa-file-alt"></i> Ver</button>`;
+        if (role === 'Admin' && prestamo.estado === 'Pendiente') {
+            buttons += `<button data-id="${prestamo.id}" data-action="Aprobado" class="action-btn text-xs bg-green-500 hover:bg-green-600 text-white font-bold py-1 px-2 rounded">Aprobar</button>`;
+            buttons += `<button data-id="${prestamo.id}" data-action="Rechazado" class="action-btn text-xs bg-red-500 hover:bg-red-600 text-white font-bold py-1 px-2 rounded ml-1">Rechazar</button>`;
         }
+        if (prestamo.estado === 'Aprobado') {
+            buttons += `<button data-id="${prestamo.id}" data-action="Desembolsado" class="action-btn text-xs bg-blue-500 hover:bg-blue-600 text-white font-bold py-1 px-2 rounded">Desembolsar</button>`;
+        }
+        // Botones de impresión por registro
+    buttons += `<button data-id="${prestamo.id}" class="print-amortizacion-btn text-xs bg-green-600 hover:bg-green-700 text-white font-bold py-1 px-2 rounded ml-1"><i class="fas fa-file-pdf"></i> PDF</button>`;
+    buttons += `<button data-id="${prestamo.id}" class="print-google-btn text-xs bg-blue-600 hover:bg-blue-700 text-white font-bold py-1 px-2 rounded ml-1"><i class="fas fa-print"></i> Imprimir</button>`;
+        // Botón eliminar préstamo solo para Admin
+        if (role === 'Admin') {
+            buttons += `<button data-id="${prestamo.id}" class="delete-prestamo-btn text-xs bg-red-500 hover:bg-red-600 text-white font-bold py-1 px-2 rounded ml-1"><i class="fas fa-trash"></i> Eliminar</button>`;
+        }
+        // Botón ver por defecto
+        buttons += `<button class="text-blue-500 hover:text-blue-700"><i class="fas fa-file-alt"></i> Ver</button>`;
+        return buttons;
     }
 
     async function fetchAndRenderPrestamos(filter = '') {
@@ -793,7 +958,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const tableBody = document.getElementById('prestamos-table-body');
         tableBody.innerHTML = '';
         if (!Array.isArray(prestamos) || prestamos.length === 0) {
-            tableBody.innerHTML = '<tr><td colspan="7" class="text-center p-8 text-gray-500">No se encontraron préstamos.</td></tr>';
+            tableBody.innerHTML = '<tr><td colspan="6" class="text-center p-8 text-gray-500">No se encontraron préstamos.</td></tr>';
             return;
         }
         prestamos.forEach(p => {
@@ -808,58 +973,10 @@ document.addEventListener('DOMContentLoaded', function () {
                     <td class="p-3">${fecha}</td>
                     <td class="p-3">${getStatusBadge(p.estado || '')}</td>
                     <td class="p-3 text-center">${getActionButtons(p)}</td>
-                    <td class="p-3 text-center">
-                        <button class="btn-print-amortizacion bg-green-600 hover:bg-green-700 text-white font-bold py-1 px-2 rounded" data-prestamo='${JSON.stringify(p)}'>IMPRIMIR AMORTIZACION</button>
-                    </td>
                 </tr>
             `;
             tableBody.innerHTML += row;
         });
-// --- Imprimir Amortización PDF ---
-document.addEventListener('click', function(e) {
-    if (e.target && e.target.classList.contains('btn-print-amortizacion')) {
-        const prestamo = JSON.parse(e.target.getAttribute('data-prestamo'));
-        imprimirAmortizacionPDF(prestamo);
-    }
-});
-
-async function imprimirAmortizacionPDF(prestamo) {
-    const doc = new window.jspdf.jsPDF();
-    doc.setFontSize(16);
-    doc.text('Tabla de Amortización', 20, 20);
-    doc.setFontSize(12);
-    doc.text(`ID Préstamo: ${prestamo.id}`, 20, 35);
-    doc.text(`Cliente: ${prestamo.cliente_nombre || prestamo.clienteNombre || ''}`, 20, 45);
-    doc.text(`Monto: $${parseFloat(prestamo.monto_aprobado ?? prestamo.monto ?? 0).toLocaleString()}`, 20, 55);
-    doc.text(`Fecha: ${prestamo.fecha_solicitud || prestamo.fecha || ''}`, 20, 65);
-    doc.text('-----------------------------', 20, 75);
-
-    // Consultar cuotas desde el backend
-    let cuotas = [];
-    try {
-        const res = await fetch(`api.php?action=get_amortizacion_by_prestamo&id=${prestamo.id}`);
-        if (res.ok) {
-            cuotas = await res.json();
-        }
-    } catch (err) {}
-
-    if (cuotas.length > 0) {
-        // Encabezados
-        doc.text('No. | Fecha | Monto | Estado', 20, 85);
-        let y = 95;
-        cuotas.forEach(cuota => {
-            doc.text(`${cuota.numero_cuota} | ${cuota.fecha_pago} | $${parseFloat(cuota.monto_cuota).toLocaleString()} | ${cuota.estado}`, 20, y);
-            y += 8;
-            if (y > 270) {
-                doc.addPage();
-                y = 20;
-            }
-        });
-    } else {
-        doc.text('No hay cuotas registradas para este préstamo.', 20, 85);
-    }
-    doc.save(`amortizacion_prestamo_${prestamo.id}.pdf`);
-}
     } catch (error) {
         console.error('Error al cargar los préstamos:', error);
         const tableBody = document.getElementById('prestamos-table-body');
@@ -889,6 +1006,100 @@ async function imprimirAmortizacionPDF(prestamo) {
                 alert('Error de conexión al actualizar el estado.');
             }
         }
+        // Imprimir PDF de amortización por registro
+        if (e.target.classList.contains('print-amortizacion-btn')) {
+            const id = e.target.dataset.id;
+            try {
+                // Obtener datos del préstamo
+                const resp = await fetch(`${API_URL}?action=get_prestamo&id=${id}`);
+                const p = await resp.json();
+                // Obtener amortización
+                const amortRes = await fetch(`${API_URL}?action=get_amortizacion&id=${id}`);
+                const amortizacion = await amortRes.json();
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+                doc.setFontSize(16);
+                doc.text('Tabla de Amortización', 14, 18);
+                doc.setFontSize(12);
+                doc.text(`ID Préstamo: ${p.id}`, 14, 28);
+                doc.text(`Cliente: ${p.cliente_nombre || ''}`, 14, 36);
+                doc.text(`Monto: $${p.monto_aprobado}`, 14, 44);
+                doc.text(`Estado: ${p.estado}`, 14, 52);
+                doc.text(`Fecha Solicitud: ${p.fecha_solicitud}`, 14, 60);
+                if (Array.isArray(amortizacion) && amortizacion.length > 0) {
+                    doc.autoTable({
+                        startY: 70,
+                        head: [['#', 'Fecha Pago', 'Monto', 'Capital', 'Interés', 'Saldo', 'Estado']],
+                        body: amortizacion.map(a => [
+                            a.numero_cuota,
+                            a.fecha_pago,
+                            `$${a.monto_cuota}`,
+                            `$${a.capital}`,
+                            `$${a.interes}`,
+                            `$${a.saldo_pendiente}`,
+                            a.estado
+                        ]),
+                        theme: 'grid',
+                        styles: { fontSize: 10 }
+                    });
+                } else {
+                    doc.text('No hay tabla de amortización disponible.', 14, 70);
+                }
+                doc.save(`amortizacion_prestamo_${p.id}.pdf`);
+            } catch (error) {
+                alert('No se pudo generar el PDF.');
+            }
+        }
+        // Imprimir con Google (navegador) por registro
+        if (e.target.classList.contains('print-google-btn')) {
+            const id = e.target.dataset.id;
+            try {
+                // Obtener amortización
+                const amortRes = await fetch(`${API_URL}?action=get_amortizacion&id=${id}`);
+                const amortizacion = await amortRes.json();
+                // Crear ventana temporal para imprimir solo la tabla
+                let html = '<html><head><title>Imprimir Amortización</title>';
+                html += '<link rel="stylesheet" href="styles.css">';
+                html += '</head><body>';
+                html += '<h2>Tabla de Amortización</h2>';
+                if (Array.isArray(amortizacion) && amortizacion.length > 0) {
+                    html += '<table border="1" cellpadding="5" style="width:100%;border-collapse:collapse;">';
+                    html += '<thead><tr><th>#</th><th>Fecha Pago</th><th>Monto</th><th>Capital</th><th>Interés</th><th>Saldo</th><th>Estado</th></tr></thead><tbody>';
+                    amortizacion.forEach(a => {
+                        html += `<tr><td>${a.numero_cuota}</td><td>${a.fecha_pago}</td><td>$${a.monto_cuota}</td><td>$${a.capital}</td><td>$${a.interes}</td><td>$${a.saldo_pendiente}</td><td>${a.estado}</td></tr>`;
+                    });
+                    html += '</tbody></table>';
+                } else {
+                    html += '<p>No hay tabla de amortización disponible.</p>';
+                }
+                html += '</body></html>';
+                const printWindow = window.open('', '', 'width=900,height=600');
+                printWindow.document.write(html);
+                printWindow.document.close();
+                printWindow.focus();
+                printWindow.print();
+                printWindow.close();
+            } catch (error) {
+                alert('No se pudo imprimir la amortización.');
+            }
+        }
+        // Eliminar préstamo en cascada (solo Admin)
+        if (e.target.classList.contains('delete-prestamo-btn')) {
+            const id = e.target.dataset.id;
+            if (!confirm('¿Está seguro de eliminar este préstamo? Se eliminarán también sus pagos y amortización.')) return;
+            try {
+                const response = await fetch(`${API_URL}?action=delete_prestamo&id=${id}`, { method: 'DELETE' });
+                const res = await response.json();
+                if (response.ok) {
+                    alert('Préstamo eliminado correctamente.');
+                    fetchAndRenderPrestamos(document.getElementById('prestamo-search').value);
+                } else {
+                    alert(res.message || 'No se pudo eliminar el préstamo.');
+                }
+            } catch (err) {
+                alert('Error de conexión al eliminar el préstamo.');
+            }
+        }
     });
     
     async function renderPagosRecientesTable() {
@@ -906,44 +1117,17 @@ async function imprimirAmortizacionPDF(prestamo) {
                 return;
             }
             pagos.forEach(p => {
-                    const row = `
-                        <tr class="border-b hover:bg-gray-50">
-                            <td class="p-3 font-mono">${p.pago_id}</td>
-                            <td class="p-3 font-mono">${p.prestamo_id}</td>
-                            <td class="p-3">$${Number(p.monto_pagado).toLocaleString()}</td>
-                            <td class="p-3">${new Date(p.fecha_pago).toLocaleString()}</td>
-                            <td class="p-3">${p.cajero || '—'}</td>
-                            <td class="p-3">
-                                <button class="btn-reimprimir-recibo bg-blue-500 hover:bg-blue-600 text-white font-bold py-1 px-2 rounded" data-pago='${JSON.stringify(p)}'>Reimprimir Recibo</button>
-                            </td>
-                        </tr>
-                    `;
-                    tableBody.innerHTML += row;
+                const row = `
+                    <tr class="border-b hover:bg-gray-50">
+                        <td class="p-3 font-mono">${p.pago_id}</td>
+                        <td class="p-3 font-mono">${p.prestamo_id}</td>
+                        <td class="p-3">$${Number(p.monto_pagado).toLocaleString()}</td>
+                        <td class="p-3">${new Date(p.fecha_pago).toLocaleString()}</td>
+                        <td class="p-3">${p.cajero || '—'}</td>
+                    </tr>
+                `;
+                tableBody.innerHTML += row;
             });
-// --- Reimprimir Recibo de Pago ---
-document.addEventListener('click', function(e) {
-    if (e.target && e.target.classList.contains('btn-reimprimir-recibo')) {
-        const pago = JSON.parse(e.target.getAttribute('data-pago'));
-        reimprimirReciboPago(pago);
-    }
-});
-
-function reimprimirReciboPago(pago) {
-    // Usar jsPDF para generar el recibo
-    const doc = new window.jspdf.jsPDF();
-    doc.setFontSize(16);
-    doc.text('Recibo de Pago', 20, 20);
-    doc.setFontSize(12);
-    doc.text(`ID Pago: ${pago.pago_id}`, 20, 35);
-    doc.text(`ID Préstamo: ${pago.prestamo_id}`, 20, 45);
-    doc.text(`Cliente: ${pago.cliente_nombre || pago.cliente || ''}`, 20, 55);
-    doc.text(`Monto: $${Number(pago.monto_pagado || pago.monto).toLocaleString()}`, 20, 65);
-    doc.text(`Fecha: ${new Date(pago.fecha_pago).toLocaleString()}`, 20, 75);
-    doc.text(`Cajero: ${pago.cajero || ''}`, 20, 85);
-    doc.text('-----------------------------', 20, 95);
-    doc.text('¡Gracias por su pago!', 20, 105);
-    doc.save(`recibo_pago_${pago.pago_id}.pdf`);
-}
         } catch (error) {
             console.error('Error al cargar pagos:', error);
             tableBody.innerHTML = '<tr><td colspan="5" class="text-center p-8 text-red-500">Error al cargar pagos.</td></tr>';
@@ -1540,177 +1724,135 @@ function reimprimirReciboPago(pago) {
                 pagoPrestamoInput.value = `#${p.id} - ${p.cliente_nombre || ''} (${p.cliente_cedula || ''})`;
                 loadPagoInfo(p.id);
             } else if (Array.isArray(data) && data.length > 1) {
-                // Mostrar las opciones para que el usuario seleccione
-                pagoSearchResults.innerHTML = '';
+                let options = '';
                 data.forEach(p => {
-                    const item = document.createElement('div');
-                    item.className = 'p-2 hover:bg-gray-100 cursor-pointer';
-                    item.textContent = `#${p.id} — ${p.cliente_nombre || ''} — ${p.cliente_cedula || ''}`;
-                    item.addEventListener('click', () => {
-                        selectedPagoPrestamo = p;
-                        pagoPrestamoId.value = p.id;
-                        pagoPrestamoInput.value = `#${p.id} - ${p.cliente_nombre || ''} (${p.cliente_cedula || ''})`;
-                        loadPagoInfo(p.id);
-                        pagoSearchResults.classList.add('hidden');
-                    });
-                    pagoSearchResults.appendChild(item);
+                    options += `<option value="${p.id}">#${p.id} - ${p.cliente_nombre} (${p.cliente_cedula})</option>`;
                 });
-                pagoSearchResults.classList.remove('hidden');
+                card.innerHTML = `
+                    <h4 class="font-semibold mb-4 text-lg">Seleccione un Préstamo</h4>
+                    <select id="pago-prestamo-select" class="w-full p-2 border rounded-lg mb-4">
+                        ${options}
+                    </select>
+                    <button id="btn-confirm-select-prestamo" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg">Seleccionar Préstamo</button>
+                `;
+                card.classList.remove('hidden');
+
+                document.getElementById('btn-confirm-select-prestamo').addEventListener('click', () => {
+                    const select = document.getElementById('pago-prestamo-select');
+                    const selectedId = select.value;
+                    if (selectedId) {
+                        selectedPagoPrestamo = data.find(p => p.id === selectedId);
+                        pagoPrestamoId.value = selectedPagoPrestamo.id;
+                        pagoPrestamoInput.value = `#${selectedPagoPrestamo.id} - ${selectedPagoPrestamo.cliente_nombre} (${selectedPagoPrestamo.cliente_cedula})`;
+                        loadPagoInfo(selectedPagoPrestamo.id);
+                        card.classList.add('hidden');
+                    }
+                });
             } else {
-                alert('No se encontraron préstamos.');
-                card.classList.add('hidden');
+                alert('Préstamo no encontrado. Verifique el ID, cédula o nombre del cliente.');
             }
-        } catch (e) {
-            alert('Error de conexión en la búsqueda.');
+        } catch (err) {
+            console.error('Error al buscar préstamo:', err);
+            alert('Error de conexión al buscar el préstamo.');
         }
     });
 
-    async function loadPagoInfo(prestamoId) {
-        const card = document.getElementById('payment-details-card');
-        try {
-            const resp = await fetch(`${API_URL}?action=get_prestamo_pago_info&id=${encodeURIComponent(prestamoId)}`);
-            const data = await resp.json();
-            if (!resp.ok) {
-                alert(data.message || 'No se pudo obtener la información de pago.');
-                card.classList.add('hidden');
-                return;
-            }
-            if (data.sin_cuotas_pendientes) {
-                alert('El préstamo no tiene cuotas pendientes.');
-                card.classList.add('hidden');
-                return;
-            }
-            document.getElementById('pago-cliente-nombre').textContent = data.cliente_nombre || '';
-            document.getElementById('pago-numero-cuota').textContent = data.proxima_cuota.numero_cuota;
-            document.getElementById('pago-fecha-limite').textContent = data.proxima_cuota.fecha_pago;
-            document.getElementById('pago-monto-cuota').textContent = Number(data.proxima_cuota.monto_cuota).toFixed(2);
-            card.dataset.prestamoId = data.prestamo_id;
-            card.dataset.amortizacionId = data.proxima_cuota.id_amortizacion;
-            card.classList.remove('hidden');
-        } catch (err) {
-            console.error('Error al cargar info de pago:', err);
-            alert('Error de conexión al cargar información de pago.');
-            card.classList.add('hidden');
-        }
+    function fetchDashboardSummary() {
+        fetch(`${API_URL}?action=get_dashboard_summary`)
+            .then(res => res.json())
+            .then(data => {
+                if (data && typeof data.capital_prestado === 'number') {
+                    document.getElementById('kpi-capital').textContent = `$${data.capital_prestado.toLocaleString()}`;
+                }
+                if (data && typeof data.total_cobrado === 'number') {
+                    document.getElementById('kpi-cobrado').textContent = `$${data.total_cobrado.toLocaleString()}`;
+                }
+                if (data && typeof data.prestamos_activos === 'number') {
+                    document.getElementById('kpi-activos').textContent = `${data.prestamos_activos}`;
+                }
+                if (data && typeof data.clientes_en_mora === 'number') {
+                    document.getElementById('kpi-mora').textContent = `${data.clientes_en_mora}`;
+                }
+            })
+            .catch(err => console.error('Error al cargar resumen del dashboard:', err));
     }
 
-    // Confirmación de pago
-    document.getElementById('btn-confirmar-pago').addEventListener('click', async () => {
-        const card = document.getElementById('payment-details-card');
-        const amortizacionId = card.dataset.amortizacionId;
-        const monto = parseFloat(document.getElementById('monto_pagado').value || '0');
-        if (!amortizacionId) { alert('Primero busque un préstamo válido.'); return; }
-        if (isNaN(monto) || monto <= 0) { alert('Ingrese un monto válido.'); return; }
-        try {
-            const payload = { id_amortizacion: amortizacionId, monto_pagado: monto, metodo_pago: 'Efectivo' };
-            const resp = await fetch(`${API_URL}?action=create_pago`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-            const data = await resp.json();
-            if (resp.ok) {
-                alert('Pago registrado exitosamente.');
-                document.getElementById('monto_pagado').value = '';
-                card.classList.add('hidden');
-                renderPagosRecientesTable();
-            } else {
-                alert(data.message || 'No se pudo registrar el pago.');
-            }
-        } catch (err) {
-            console.error('Error al registrar pago:', err);
-            alert('Error de conexión al registrar el pago.');
-        }
-    });
-
-    async function fetchDashboardSummary() {
-        try {
-            const res = await fetch(`${API_URL}?action=get_dashboard_summary`);
-            if (!res.ok) return;
-            const data = await res.json();
-            const fmt = (n) => new Intl.NumberFormat('es-DO', { maximumFractionDigits: 2 }).format(n || 0);
-            document.getElementById('kpi-capital').textContent = `$${fmt(data.total_prestado)}`;
-            document.getElementById('kpi-cobrado').textContent = `$${fmt(data.total_cobrado)}`;
-            document.getElementById('kpi-activos').textContent = `${fmt(data.prestamos_activos)}`;
-            document.getElementById('kpi-mora').textContent = `${fmt(data.clientes_en_mora)}`;
-        } catch (e) { /* noop */ }
-    }
-
-    async function initCharts() {
-        try {
-            const resp = await fetch(`${API_URL}?action=get_dashboard_charts`);
-            if (!resp.ok) throw new Error('No se pudo obtener datos de gráficas');
-            const data = await resp.json();
-
-            const monthly = data.monthly || {};
-            const labels = monthly.labels_short || monthly.labels || [];
-            const prestado = Array.isArray(monthly.prestado) ? monthly.prestado : [];
-            const cobrado = Array.isArray(monthly.cobrado) ? monthly.cobrado : [];
-
-            const monthlyCtx = document.getElementById('monthlyPerformanceChart').getContext('2d');
-            new Chart(monthlyCtx, {
-                type: 'bar',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: 'Prestado',
-                        data: prestado,
-                        backgroundColor: 'rgba(59, 130, 246, 0.7)',
-                        borderColor: 'rgba(59, 130, 246, 1)',
-                        borderWidth: 1
-                    }, {
-                        label: 'Cobrado',
-                        data: cobrado,
-                        backgroundColor: 'rgba(34, 197, 94, 0.7)',
-                        borderColor: 'rgba(34, 197, 94, 1)',
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: { y: { beginAtZero: true } }
-                }
-            });
-
-            const dist = data.status_distribution || {};
-            const statusLabels = Array.isArray(dist.labels) && dist.labels.length ? dist.labels : ['Desembolsado', 'Pendiente', 'Aprobado', 'Rechazado', 'Saldado'];
-            const statusCounts = Array.isArray(dist.counts) && dist.counts.length ? dist.counts : new Array(statusLabels.length).fill(0);
-
-            const statusCtx = document.getElementById('loanStatusChart').getContext('2d');
-            new Chart(statusCtx, {
-                type: 'doughnut',
-                data: {
-                    labels: statusLabels,
-                    datasets: [{
-                        data: statusCounts,
-                        backgroundColor: ['#22C55E', '#F59E0B', '#3B82F6', '#EF4444', '#6B7280'],
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                }
-            });
-        } catch (e) {
-            // Fallback simple si hay error: no bloquear el resto del dashboard
-            try {
-                const monthlyCtx = document.getElementById('monthlyPerformanceChart').getContext('2d');
-                new Chart(monthlyCtx, {
+    function initCharts() {
+        // Gráfico de Rendimiento Mensual
+        fetch(`${API_URL}?action=get_rendimiento_mensual`)
+            .then(res => res.json())
+            .then(data => {
+                const ctx = document.getElementById('monthlyPerformanceChart').getContext('2d');
+                new Chart(ctx, {
                     type: 'bar',
-                    data: { labels: [], datasets: [] },
-                    options: { responsive: true, maintainAspectRatio: false }
+                    data: {
+                        labels: data.map(item => item.mes),
+                        datasets: [{
+                            label: 'Monto Prestado',
+                            data: data.map(item => item.monto_prestado),
+                            backgroundColor: '#3B82F6',
+                            borderColor: '#1E40AF',
+                            borderWidth: 2
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: function(value) { return `$${value}`; }
+                                }
+                            }
+                        }
+                    }
                 });
-            } catch (_) {}
-            try {
-                const statusCtx = document.getElementById('loanStatusChart').getContext('2d');
-                new Chart(statusCtx, {
+            })
+            .catch(err => console.error('Error al cargar gráfico de rendimiento mensual:', err));
+
+        // Gráfico de Distribución de Préstamos
+        fetch(`${API_URL}?action=get_estadisticas_prestamos`)
+            .then(res => res.json())
+            .then(data => {
+                const statusLabels = data.map(item => item.estado);
+                const statusCounts = data.map(item => item.total);
+
+                const ctx = document.getElementById('loanStatusChart').getContext('2d');
+                new Chart(ctx, {
                     type: 'doughnut',
-                    data: { labels: [], datasets: [{ data: [] }] },
-                    options: { responsive: true, maintainAspectRatio: false }
+                    data: {
+                        labels: statusLabels,
+                        datasets: [{
+                            data: statusCounts,
+                            backgroundColor: ['#22C55E', '#F59E0B', '#3B82F6', '#EF4444', '#6B7280'],
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                    }
                 });
-            } catch (_) {}
-        }
+            })
+            .catch(e => {
+                // Fallback simple si hay error: no bloquear el resto del dashboard
+                try {
+                    const monthlyCtx = document.getElementById('monthlyPerformanceChart').getContext('2d');
+                    new Chart(monthlyCtx, {
+                        type: 'bar',
+                        data: { labels: [], datasets: [] },
+                        options: { responsive: true, maintainAspectRatio: false }
+                    });
+                } catch (_) {}
+                try {
+                    const statusCtx = document.getElementById('loanStatusChart').getContext('2d');
+                    new Chart(statusCtx, {
+                        type: 'doughnut',
+                        data: { labels: [], datasets: [{ data: [] }] },
+                        options: { responsive: true, maintainAspectRatio: false }
+                    });
+                } catch (_) {}
+            });
     }
 
     function initializeDashboard() {

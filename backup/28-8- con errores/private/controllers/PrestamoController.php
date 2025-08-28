@@ -86,55 +86,58 @@ class PrestamoController {
         $this->prestamo->monto_cuota = round($montoCuota, 2);
 
         // Intentar crear el préstamo
-            if ($this->prestamo->create()) {
-                // Obtener el ID del préstamo recién creado
-                $prestamo_id = $this->prestamo->id ?? null;
-                if (!$prestamo_id) {
-                    http_response_code(500);
-                    echo json_encode(['message' => 'No se pudo obtener el ID del préstamo.']);
-                    return;
+        if ($this->prestamo->create()) {
+            // Crear tabla de amortización
+            $prestamo_id = $this->prestamo->id;
+            $fecha = new DateTime($this->prestamo->fecha_solicitud);
+            $frecuencia = $freq;
+            $saldo_pendiente = $monto;
+            
+            // Calcular amortización francesa con precisión
+            for ($i = 1; $i <= $plazo; $i++) {
+                $fecha_pago = clone $fecha;
+                if ($frecuencia === 'diario') {
+                    $fecha_pago->modify("+$i day");
+                } elseif ($frecuencia === 'semanal') {
+                    $fecha_pago->modify("+" . ($i * 7) . " days");
+                } else { // mensual
+                    $fecha_pago->modify("+" . $i . " month");
                 }
-                // Crear tabla de amortización
-                $cuotas = [];
-                $balance = $monto;
-                $fecha = new DateTime($data->fecha_solicitud);
-                for ($i = 1; $i <= $plazo; $i++) {
-                    $fecha_pago = clone $fecha;
-                    if ($freq === 'diario') {
-                        $fecha_pago->modify("+{$i} day");
-                    } elseif ($freq === 'semanal') {
-                        $fecha_pago->modify("+" . ($i * 7) . " days");
-                    } else { // mensual
-                        $fecha_pago->modify("+{$i} month");
-                    }
-                    $interes = $balance * $tasaPeriodica;
-                    $capital = $montoCuota - $interes;
-                    $saldo_pendiente = $balance - $capital;
-                    $cuotas[] = [
-                        'id_prestamo' => $prestamo_id,
-                        'numero_cuota' => $i,
-                        'monto_cuota' => round($montoCuota, 2),
-                        'capital' => round($capital, 2),
-                        'interes' => round($interes, 2),
-                        'saldo_pendiente' => round(max(0, $saldo_pendiente), 2),
-                        'fecha_pago' => $fecha_pago->format('Y-m-d'),
-                        'estado' => 'Pendiente'
-                    ];
-                    $balance = $saldo_pendiente;
+                
+                // Calcular interés y capital para esta cuota
+                $interes_cuota = $saldo_pendiente * $tasaPeriodica;
+                $capital_cuota = $montoCuota - $interes_cuota;
+                $saldo_pendiente -= $capital_cuota;
+                
+                // Ajustar última cuota para saldo exacto de cero
+                if ($i == $plazo) {
+                    $capital_cuota += $saldo_pendiente;
+                    $saldo_pendiente = 0;
                 }
-                // Guardar cuotas en la base de datos
-                foreach ($cuotas as $cuota) {
-                    $this->amortizacion->create($cuota);
-                }
-                http_response_code(201);
-                echo json_encode([
-                    'message' => 'Préstamo y amortización creados exitosamente.',
-                    'prestamo_id' => $prestamo_id
-                ]);
-            } else {
-                http_response_code(503);
-                echo json_encode(['message' => 'No se pudo crear el préstamo.']);
+                
+                $cuota_data = [
+                    'id_prestamo' => $prestamo_id,
+                    'numero_cuota' => $i,
+                    'monto_cuota' => round($montoCuota, 2),
+                    'capital' => round($capital_cuota, 2),
+                    'interes' => round($interes_cuota, 2),
+                    'saldo_pendiente' => round($saldo_pendiente, 2),
+                    'fecha_pago' => $fecha_pago->format('Y-m-d'),
+                    'estado' => 'Pendiente'
+                ];
+                
+                $this->amortizacion->create($cuota_data);
             }
+            
+            http_response_code(201);
+            echo json_encode([
+                'message' => 'Préstamo y amortización creados exitosamente.',
+                'prestamo_id' => $prestamo_id
+            ]);
+        } else {
+            http_response_code(503);
+            echo json_encode(['message' => 'No se pudo crear el préstamo.']);
+        }
     }
 
     // Actualizar estado

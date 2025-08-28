@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard de Gestión de Préstamos</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
@@ -793,7 +792,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const tableBody = document.getElementById('prestamos-table-body');
         tableBody.innerHTML = '';
         if (!Array.isArray(prestamos) || prestamos.length === 0) {
-            tableBody.innerHTML = '<tr><td colspan="7" class="text-center p-8 text-gray-500">No se encontraron préstamos.</td></tr>';
+            tableBody.innerHTML = '<tr><td colspan="6" class="text-center p-8 text-gray-500">No se encontraron préstamos.</td></tr>';
             return;
         }
         prestamos.forEach(p => {
@@ -808,58 +807,10 @@ document.addEventListener('DOMContentLoaded', function () {
                     <td class="p-3">${fecha}</td>
                     <td class="p-3">${getStatusBadge(p.estado || '')}</td>
                     <td class="p-3 text-center">${getActionButtons(p)}</td>
-                    <td class="p-3 text-center">
-                        <button class="btn-print-amortizacion bg-green-600 hover:bg-green-700 text-white font-bold py-1 px-2 rounded" data-prestamo='${JSON.stringify(p)}'>IMPRIMIR AMORTIZACION</button>
-                    </td>
                 </tr>
             `;
             tableBody.innerHTML += row;
         });
-// --- Imprimir Amortización PDF ---
-document.addEventListener('click', function(e) {
-    if (e.target && e.target.classList.contains('btn-print-amortizacion')) {
-        const prestamo = JSON.parse(e.target.getAttribute('data-prestamo'));
-        imprimirAmortizacionPDF(prestamo);
-    }
-});
-
-async function imprimirAmortizacionPDF(prestamo) {
-    const doc = new window.jspdf.jsPDF();
-    doc.setFontSize(16);
-    doc.text('Tabla de Amortización', 20, 20);
-    doc.setFontSize(12);
-    doc.text(`ID Préstamo: ${prestamo.id}`, 20, 35);
-    doc.text(`Cliente: ${prestamo.cliente_nombre || prestamo.clienteNombre || ''}`, 20, 45);
-    doc.text(`Monto: $${parseFloat(prestamo.monto_aprobado ?? prestamo.monto ?? 0).toLocaleString()}`, 20, 55);
-    doc.text(`Fecha: ${prestamo.fecha_solicitud || prestamo.fecha || ''}`, 20, 65);
-    doc.text('-----------------------------', 20, 75);
-
-    // Consultar cuotas desde el backend
-    let cuotas = [];
-    try {
-        const res = await fetch(`api.php?action=get_amortizacion_by_prestamo&id=${prestamo.id}`);
-        if (res.ok) {
-            cuotas = await res.json();
-        }
-    } catch (err) {}
-
-    if (cuotas.length > 0) {
-        // Encabezados
-        doc.text('No. | Fecha | Monto | Estado', 20, 85);
-        let y = 95;
-        cuotas.forEach(cuota => {
-            doc.text(`${cuota.numero_cuota} | ${cuota.fecha_pago} | $${parseFloat(cuota.monto_cuota).toLocaleString()} | ${cuota.estado}`, 20, y);
-            y += 8;
-            if (y > 270) {
-                doc.addPage();
-                y = 20;
-            }
-        });
-    } else {
-        doc.text('No hay cuotas registradas para este préstamo.', 20, 85);
-    }
-    doc.save(`amortizacion_prestamo_${prestamo.id}.pdf`);
-}
     } catch (error) {
         console.error('Error al cargar los préstamos:', error);
         const tableBody = document.getElementById('prestamos-table-body');
@@ -906,44 +857,17 @@ async function imprimirAmortizacionPDF(prestamo) {
                 return;
             }
             pagos.forEach(p => {
-                    const row = `
-                        <tr class="border-b hover:bg-gray-50">
-                            <td class="p-3 font-mono">${p.pago_id}</td>
-                            <td class="p-3 font-mono">${p.prestamo_id}</td>
-                            <td class="p-3">$${Number(p.monto_pagado).toLocaleString()}</td>
-                            <td class="p-3">${new Date(p.fecha_pago).toLocaleString()}</td>
-                            <td class="p-3">${p.cajero || '—'}</td>
-                            <td class="p-3">
-                                <button class="btn-reimprimir-recibo bg-blue-500 hover:bg-blue-600 text-white font-bold py-1 px-2 rounded" data-pago='${JSON.stringify(p)}'>Reimprimir Recibo</button>
-                            </td>
-                        </tr>
-                    `;
-                    tableBody.innerHTML += row;
+                const row = `
+                    <tr class="border-b hover:bg-gray-50">
+                        <td class="p-3 font-mono">${p.pago_id}</td>
+                        <td class="p-3 font-mono">${p.prestamo_id}</td>
+                        <td class="p-3">$${Number(p.monto_pagado).toLocaleString()}</td>
+                        <td class="p-3">${new Date(p.fecha_pago).toLocaleString()}</td>
+                        <td class="p-3">${p.cajero || '—'}</td>
+                    </tr>
+                `;
+                tableBody.innerHTML += row;
             });
-// --- Reimprimir Recibo de Pago ---
-document.addEventListener('click', function(e) {
-    if (e.target && e.target.classList.contains('btn-reimprimir-recibo')) {
-        const pago = JSON.parse(e.target.getAttribute('data-pago'));
-        reimprimirReciboPago(pago);
-    }
-});
-
-function reimprimirReciboPago(pago) {
-    // Usar jsPDF para generar el recibo
-    const doc = new window.jspdf.jsPDF();
-    doc.setFontSize(16);
-    doc.text('Recibo de Pago', 20, 20);
-    doc.setFontSize(12);
-    doc.text(`ID Pago: ${pago.pago_id}`, 20, 35);
-    doc.text(`ID Préstamo: ${pago.prestamo_id}`, 20, 45);
-    doc.text(`Cliente: ${pago.cliente_nombre || pago.cliente || ''}`, 20, 55);
-    doc.text(`Monto: $${Number(pago.monto_pagado || pago.monto).toLocaleString()}`, 20, 65);
-    doc.text(`Fecha: ${new Date(pago.fecha_pago).toLocaleString()}`, 20, 75);
-    doc.text(`Cajero: ${pago.cajero || ''}`, 20, 85);
-    doc.text('-----------------------------', 20, 95);
-    doc.text('¡Gracias por su pago!', 20, 105);
-    doc.save(`recibo_pago_${pago.pago_id}.pdf`);
-}
         } catch (error) {
             console.error('Error al cargar pagos:', error);
             tableBody.innerHTML = '<tr><td colspan="5" class="text-center p-8 text-red-500">Error al cargar pagos.</td></tr>';

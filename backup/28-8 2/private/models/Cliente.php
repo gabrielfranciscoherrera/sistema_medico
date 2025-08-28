@@ -11,7 +11,6 @@ class Cliente {
     public $telefono;
     public $direccion;
     public $creado_por_empleado_id;
-    public $fecha_registro;
 
     public function __construct($db) {
         $this->conn = $db;
@@ -19,9 +18,9 @@ class Cliente {
 
     // Buscar clientes por nombre o cédula
     public function search($term) {
-    $query = "SELECT id, nombre_completo, cedula, telefono, fecha_registro FROM " . $this->table . "
-          WHERE nombre_completo LIKE :term OR cedula LIKE :term
-          LIMIT 10";
+        $query = "SELECT id, nombre_completo, cedula, telefono FROM " . $this->table . "
+                  WHERE nombre_completo LIKE :term OR cedula LIKE :term
+                  LIMIT 10";
 
         $stmt = $this->conn->prepare($query);
         $term_param = '%' . htmlspecialchars(strip_tags($term)) . '%';
@@ -46,8 +45,7 @@ class Cliente {
             cedula = :cedula,
             telefono = :telefono,
             direccion = :direccion,
-            creado_por_empleado_id = :creado_por_empleado_id,
-            fecha_registro = :fecha_registro';
+            creado_por_empleado_id = :creado_por_empleado_id';
 
         $stmt = $this->conn->prepare($query);
 
@@ -57,7 +55,6 @@ class Cliente {
         $this->telefono = htmlspecialchars(strip_tags($this->telefono));
         $this->direccion = htmlspecialchars(strip_tags($this->direccion));
         $this->creado_por_empleado_id = htmlspecialchars(strip_tags($this->creado_por_empleado_id));
-        $this->fecha_registro = date('Y-m-d H:i:s'); // Asignar la fecha y hora actual
 
         // Vincular parámetros
         $stmt->bindParam(':nombre_completo', $this->nombre_completo);
@@ -65,7 +62,6 @@ class Cliente {
         $stmt->bindParam(':telefono', $this->telefono);
         $stmt->bindParam(':direccion', $this->direccion);
         $stmt->bindParam(':creado_por_empleado_id', $this->creado_por_empleado_id);
-        $stmt->bindParam(':fecha_registro', $this->fecha_registro);
 
         if ($stmt->execute()) {
             $this->id = $this->conn->lastInsertId();

@@ -39,22 +39,22 @@ class Prestamo {
 
     // Obtener todos los préstamos con filtro
     public function read($filter) {
-                $query = "SELECT 
-                                                p.id,
-                                                p.id_cliente,
-                                                c.nombre_completo AS cliente_nombre,
-                                                c.cedula AS cliente_cedula,
-                                                p.monto_aprobado,
-                                                p.tasa_interes_anual,
-                                                p.plazo,
-                                                p.frecuencia_pago,
-                                                p.monto_cuota,
-                                                p.estado,
-                                                p.fecha_solicitud
-                                            FROM " . $this->table . " p
-                                            LEFT JOIN clientes c ON p.id_cliente = c.id
-                                            WHERE (c.nombre_completo LIKE :filter OR c.cedula LIKE :filter OR p.id LIKE :filter)
-                                            ORDER BY p.fecha_solicitud DESC";
+        $query = "SELECT 
+                    p.id,
+                    p.id_cliente,
+                    c.nombre_completo AS cliente_nombre,
+                    c.cedula AS cliente_cedula,
+                    p.monto_aprobado,
+                    p.tasa_interes_anual,
+                    p.plazo,
+                    p.frecuencia_pago,
+                    p.monto_cuota,
+                    p.estado,
+                    p.fecha_solicitud
+                FROM " . $this->table . " p
+                LEFT JOIN clientes c ON p.id_cliente = c.id
+                WHERE (c.nombre_completo LIKE :filter OR c.cedula LIKE :filter OR p.id LIKE :filter)
+                ORDER BY p.fecha_solicitud DESC";
         
         $stmt = $this->conn->prepare($query);
         $filter_param = '%' . htmlspecialchars(strip_tags($filter)) . '%';
@@ -100,16 +100,9 @@ class Prestamo {
         $stmt->bindParam(':estado', $this->estado);
         $stmt->bindParam(':id_empleado_registra', $this->id_empleado_registra);
 
-        try {
-            if ($stmt->execute()) {
-                $this->id = $this->conn->lastInsertId();
-                return true;
-            } else {
-                // Mostrar error de PDO
-                error_log('PDO Error: ' . implode(" | ", $stmt->errorInfo()));
-            }
-        } catch (PDOException $e) {
-            error_log('PDOException: ' . $e->getMessage());
+        if ($stmt->execute()) {
+            $this->id = $this->conn->lastInsertId();
+            return true;
         }
         return false;
     }
