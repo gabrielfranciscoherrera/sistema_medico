@@ -416,6 +416,7 @@ document.addEventListener('DOMContentLoaded', function () {
     
     // La URL base de tu API. Ajusta la ruta si es necesario.
     const API_URL = 'api.php';
+    const AUTH_URL = 'auth.php';
 
     // Datos de ejemplo para módulos aún no conectados al backend
     const mockData = {
@@ -445,7 +446,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     async function checkAuth() {
         try {
-            const response = await fetch(`${API_URL}?action=get_session`);
+            const response = await fetch(`${AUTH_URL}?action=get_session`);
             if (!response.ok) {
                 window.location.href = 'login.php';
                 return; // Detiene la ejecución si no está autenticado
@@ -490,7 +491,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     document.getElementById('logout-btn').addEventListener('click', async () => {
         try {
-            await fetch(`${API_URL}?action=logout`, { method: 'POST' });
+            await fetch(`${AUTH_URL}?action=logout`, { method: 'POST' });
             window.location.href = 'login.php';
         } catch (error) {
             console.error('Error al cerrar sesión:', error);

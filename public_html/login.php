@@ -58,7 +58,7 @@
             const errorMessage = document.getElementById('error-message');
 
             try {
-                const response = await fetch('api.php?action=login', {
+                const response = await fetch('auth.php?action=login', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
