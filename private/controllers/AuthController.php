@@ -111,11 +111,9 @@ class AuthController {
                 'error' => 'DATABASE_ERROR',
                 'message' => 'Error en la base de datos durante el inicio de sesión.'
             ];
-            if (function_exists('getenv')) {
-                $debugFlag = strtolower((string) getenv('APP_DEBUG'));
-                if (in_array($debugFlag, ['1','true','yes','on'])) {
-                    $payload['details'] = $e->getMessage();
-                }
+            $isDebug = defined('APP_DEBUG') ? (bool)APP_DEBUG : in_array(strtolower((string) getenv('APP_DEBUG')), ['1','true','yes','on']);
+            if ($isDebug) {
+                $payload['details'] = $e->getMessage();
             }
             echo json_encode($payload);
         }

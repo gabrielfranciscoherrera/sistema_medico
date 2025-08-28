@@ -28,6 +28,9 @@ function env_val($key, $default = null) {
     return $v === false ? $default : $v;
 }
 function app_debug() {
+    if (defined('APP_DEBUG')) {
+        return (bool) APP_DEBUG;
+    }
     $v = strtolower((string) env_val('APP_DEBUG', 'false'));
     return in_array($v, ['1','true','yes','on']);
 }
