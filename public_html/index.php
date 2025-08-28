@@ -447,14 +447,14 @@ document.addEventListener('DOMContentLoaded', function () {
         try {
             const response = await fetch(`${API_URL}?action=get_session`);
             if (!response.ok) {
-                window.location.href = 'login.html';
+                window.location.href = 'login.php';
                 return; // Detiene la ejecución si no está autenticado
             }
             currentUser = await response.json();
             initializeDashboard();
         } catch (error) {
             console.error('Error de autenticación:', error);
-            window.location.href = 'login.html';
+            window.location.href = 'login.php';
         }
     }
 
@@ -491,7 +491,7 @@ document.addEventListener('DOMContentLoaded', function () {
     document.getElementById('logout-btn').addEventListener('click', async () => {
         try {
             await fetch(`${API_URL}?action=logout`, { method: 'POST' });
-            window.location.href = 'login.html';
+            window.location.href = 'login.php';
         } catch (error) {
             console.error('Error al cerrar sesión:', error);
             alert('No se pudo cerrar la sesión. Intente de nuevo.');

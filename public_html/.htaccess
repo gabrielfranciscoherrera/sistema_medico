@@ -1,0 +1,9 @@
+DirectoryIndex index.php
+
+<IfModule mod_rewrite.c>
+RewriteEngine On
+# Redirigir archivos .html a .php equivalentes
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule ^(.+)\.html$ $1.php [L,R=301]
+</IfModule>
+

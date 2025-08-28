@@ -69,7 +69,7 @@
                 const result = await response.json();
 
                 if (response.ok) {
-                    window.location.href = 'index.html';
+                    window.location.href = 'index.php';
                 } else {
                     errorMessage.textContent = result.message || 'Error al iniciar sesión.';
                     errorMessage.classList.remove('hidden');

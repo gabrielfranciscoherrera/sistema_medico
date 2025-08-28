@@ -22,6 +22,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit();
 }
 
+// --- Helpers de configuración y respuesta ---
+function env_val($key, $default = null) {
+    $v = getenv($key);
+    return $v === false ? $default : $v;
+}
+function app_debug() {
+    $v = strtolower((string) env_val('APP_DEBUG', 'false'));
+    return in_array($v, ['1','true','yes','on']);
+}
+function respond($status, $payload) {
+    http_response_code($status);
+    echo json_encode($payload);
+    exit();
+}
+function error_response($status, $code, $message, $details = null, $extra = []) {
+    $resp = array_merge([
+        'error' => $code,
+        'message' => $message,
+    ], $extra);
+    if ($details !== null && app_debug()) {
+        $resp['details'] = $details;
+    }
+    respond($status, $resp);
+}
+
 // Incluir los archivos necesarios
 require_once __DIR__ . '/../private/config/database.php';
 require_once __DIR__ . '/../private/controllers/PrestamoController.php';
@@ -31,9 +56,17 @@ require_once __DIR__ . '/../private/controllers/PagoController.php';
 require_once __DIR__ . '/../private/controllers/DashboardController.php';
 require_once __DIR__ . '/../private/controllers/EmpleadoController.php';
 
-// Instanciar la base de datos y obtener la conexión
-$database = new Database();
-$db = $database->connect();
+// Instanciar la base de datos y obtener la conexión, con manejo de errores
+try {
+    $database = new Database();
+    $db = $database->connect();
+} catch (Throwable $e) {
+    $details = $e->getMessage();
+    if (method_exists($e, 'getPrevious') && $e->getPrevious()) {
+        $details = $e->getPrevious()->getMessage();
+    }
+    error_response(500, 'DATABASE_ERROR', 'No se pudo conectar a la base de datos.', $details);
+}
 
 // Instanciar los controladores
 $authController = new AuthController($db);
@@ -62,12 +95,44 @@ function deny_access($message = 'Acceso denegado.') {
 
 // --- Enrutador ---
 $action = isset($_GET['action']) ? $_GET['action'] : '';
-$data = json_decode(file_get_contents("php://input"));
+$rawBody = file_get_contents("php://input");
+$data = json_decode($rawBody);
 
+try {
 switch ($action) {
     // --- Rutas Públicas ---
+    case 'health':
+        try {
+            $stmt = $db->query('SELECT 1');
+            $db_ok = ($stmt && $stmt->fetchColumn() == 1);
+            respond(200, [
+                'status' => 'ok',
+                'db' => $db_ok ? 'up' : 'down'
+            ]);
+        } catch (Throwable $e) {
+            error_response(500, 'HEALTH_DB_ERROR', 'Fallo al verificar la base de datos.', $e->getMessage());
+        }
+        break;
     case 'login':
-        $authController->login($data);
+        // Método debe ser POST
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            header('Allow: POST');
+            error_response(405, 'METHOD_NOT_ALLOWED', 'El login requiere método POST.');
+        }
+
+        // Content-Type debe ser JSON
+        $contentType = $_SERVER['CONTENT_TYPE'] ?? ($_SERVER['HTTP_CONTENT_TYPE'] ?? '');
+        if (stripos($contentType, 'application/json') === false) {
+            error_response(415, 'UNSUPPORTED_MEDIA_TYPE', 'Se requiere Content-Type: application/json.');
+        }
+
+        // Validar JSON
+        $payloadAssoc = json_decode($rawBody, true);
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            error_response(400, 'INVALID_JSON', 'JSON inválido en el cuerpo de la solicitud.', json_last_error_msg());
+        }
+
+        $authController->login($payloadAssoc);
         break;
     case 'logout':
         $authController->logout();
@@ -132,8 +197,11 @@ switch ($action) {
         break;
 
     default:
-        http_response_code(404);
-        echo json_encode(['message' => 'Acción no encontrada.']);
+        respond(404, ['message' => 'Acción no encontrada.']);
         break;
+}
+} catch (Throwable $e) {
+    // Manejo de errores inesperados (incluidos de base de datos)
+    error_response(500, 'INTERNAL_SERVER_ERROR', 'Ha ocurrido un error interno al procesar la solicitud.', $e->getMessage());
 }
 ?>
