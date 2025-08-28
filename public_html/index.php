@@ -4,35 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard de Gestión de Préstamos</title>
-    <!-- Chosen Palette: Paleta Corporativa Azul y Gris -->
-    <!-- Application Structure Plan: Se ha diseñado una Single-Page Application (SPA) con una estructura de dashboard modular. La navegación lateral permite cambiar entre "vistas" (Dashboard, Clientes, Préstamos, Pagos, Empleados) que se muestran u ocultan dinámicamente con JavaScript. Esta arquitectura fue elegida porque es la más intuitiva para una aplicación de gestión, separando las funcionalidades por tareas y permitiendo al usuario enfocarse en una sola área a la vez (ej. crear un cliente, luego registrar un préstamo) sin recargar la página, lo que resulta en una experiencia de usuario fluida y eficiente. -->
-    <!-- Visualization & Content Choices: 
-        - Dashboard: KPI Cards (HTML/CSS) para informar métricas clave de un vistazo. Gráfico de Barras (Chart.js) para comparar préstamos vs. cobros a lo largo del tiempo. Gráfico de Anillo (Chart.js) para mostrar la proporción de estados de préstamos. Interacción: Tooltips al pasar el ratón. Justificación: Proporciona un resumen visual rápido del estado del negocio.
-        - Clientes/Préstamos/Pagos: Tablas interactivas (HTML/CSS) para organizar y gestionar datos. Interacción: Búsqueda y filtrado dinámico con JS. Justificación: Es el método estándar y más eficiente para manejar listas de registros.
-        - Creación de Préstamo: Formulario con cálculo de amortización en tiempo real (JS). Interacción: El usuario ingresa datos y la tabla de pagos se genera instantáneamente. Justificación: Es la funcionalidad central del sistema y una herramienta interactiva de alto valor que demuestra la lógica de negocio.
-    -->
-    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        body { font-family: 'Inter', sans-serif; }
-        .sidebar-icon { width: 20px; text-align: center; }
-        .kpi-card { transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out; }
-        .kpi-card:hover { transform: translateY(-5px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); }
-        .chart-container { position: relative; width: 100%; max-width: 800px; margin-left: auto; margin-right: auto; height: 350px; max-height: 40vh; }
-        @media (max-width: 768px) { .chart-container { height: 300px; max-height: 50vh; } }
-        .modal-backdrop {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background-color: rgba(0, 0, 0, 0.5); z-index: 40;
-            display: none; align-items: center; justify-content: center;
-        }
-        .modal-content { max-height: 90vh; overflow-y: auto; }
-        .nav-link.active { background-color: #2563EB; color: white; }
-    </style>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body class="bg-gray-100 text-gray-800">
 
@@ -104,7 +82,7 @@
                             </div>
                             <div class="ml-4">
                                 <p class="text-gray-500">Capital Prestado</p>
-                                <p class="text-2xl font-bold">$1,250,000</p>
+                                <p id="kpi-capital" class="text-2xl font-bold">$0</p>
                             </div>
                         </div>
                         <div class="kpi-card bg-white p-6 rounded-xl shadow-lg flex items-center">
@@ -113,7 +91,7 @@
                             </div>
                             <div class="ml-4">
                                 <p class="text-gray-500">Total Cobrado</p>
-                                <p class="text-2xl font-bold">$480,500</p>
+                                <p id="kpi-cobrado" class="text-2xl font-bold">$0</p>
                             </div>
                         </div>
                          <div class="kpi-card bg-white p-6 rounded-xl shadow-lg flex items-center">
@@ -122,7 +100,7 @@
                             </div>
                             <div class="ml-4">
                                 <p class="text-gray-500">Préstamos Activos</p>
-                                <p class="text-2xl font-bold">152</p>
+                                <p id="kpi-activos" class="text-2xl font-bold">0</p>
                             </div>
                         </div>
                         <div class="kpi-card bg-white p-6 rounded-xl shadow-lg flex items-center">
@@ -131,7 +109,7 @@
                             </div>
                             <div class="ml-4">
                                 <p class="text-gray-500">Clientes en Mora</p>
-                                <p class="text-2xl font-bold">18</p>
+                                <p id="kpi-mora" class="text-2xl font-bold">0</p>
                             </div>
                         </div>
                     </div>
@@ -287,6 +265,7 @@
                                         <th class="p-3">Usuario</th>
                                         <th class="p-3">Rol</th>
                                         <th class="p-3">Descripción del Rol</th>
+                                        <th class="p-3 text-center">Acciones</th>
                                     </tr>
                                 </thead>
                                 <tbody id="empleados-table-body">
@@ -409,6 +388,45 @@
             </div>
         </div>
     </div>
+
+    <!-- Modal Editar Empleado -->
+    <div id="modal-edit-employee" class="modal-backdrop">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg m-4 modal-content">
+            <div class="p-6 border-b">
+                <h3 class="text-xl font-semibold">Editar Empleado</h3>
+            </div>
+            <div class="p-6">
+                <form id="form-edit-employee" class="space-y-4">
+                    <input type="hidden" id="edit_emp_id">
+                    <div>
+                        <label class="block font-medium mb-1">Nombre</label>
+                        <input type="text" id="edit_emp_nombre" class="w-full p-2 border rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block font-medium mb-1">Usuario</label>
+                        <input type="text" id="edit_emp_usuario" class="w-full p-2 border rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block font-medium mb-1">Rol (ID)</label>
+                        <select id="edit_emp_id_rol" class="w-full p-2 border rounded-lg">
+                            <option value="1">Admin</option>
+                            <option value="2">Gerente</option>
+                            <option value="3">Servicio al Cliente</option>
+                            <option value="4">Cajero</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block font-medium mb-1">Nueva Contraseña (opcional)</label>
+                        <input type="password" id="edit_emp_password" class="w-full p-2 border rounded-lg" placeholder="Dejar en blanco para no cambiar">
+                    </div>
+                </form>
+            </div>
+            <div class="p-4 bg-gray-50 flex justify-end space-x-3 rounded-b-xl">
+                <button type="button" class="btn-close-modal btn btn-secondary">Cancelar</button>
+                <button type="submit" form="form-edit-employee" class="btn btn-primary">Guardar</button>
+            </div>
+        </div>
+    </div>
     
 <script>
 document.addEventListener('DOMContentLoaded', function () {
@@ -528,28 +546,39 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('sidebar').classList.toggle('-translate-x-full');
     });
 
-    function renderClientesTable(filter = '') {
+    async function fetchAndRenderClientes(filter = '') {
         const tableBody = document.getElementById('clientes-table-body');
         tableBody.innerHTML = '';
-        const filteredData = mockData.clientes.filter(c => 
-            c.nombre.toLowerCase().includes(filter.toLowerCase()) || 
-            c.cedula.includes(filter)
-        );
-        filteredData.forEach(cliente => {
-            const row = `
-                <tr class="border-b hover:bg-gray-50">
-                    <td class="p-3">${cliente.nombre}</td>
-                    <td class="p-3">${cliente.cedula}</td>
-                    <td class="p-3">${cliente.telefono}</td>
-                    <td class="p-3">${cliente.fecha}</td>
-                    <td class="p-3">
-                        <button class="text-blue-500 hover:text-blue-700 mr-2"><i class="fas fa-eye"></i></button>
-                        <button class="text-yellow-500 hover:text-yellow-700"><i class="fas fa-edit"></i></button>
-                    </td>
-                </tr>
-            `;
-            tableBody.innerHTML += row;
-        });
+        try {
+            const resp = await fetch(`${API_URL}?action=search_clientes&term=${encodeURIComponent(filter)}`);
+            const clientes = await resp.json();
+            if (!Array.isArray(clientes) || clientes.length === 0) {
+                tableBody.innerHTML = '<tr><td colspan="5" class="text-center p-8 text-gray-500">No se encontraron clientes.</td></tr>';
+                return;
+            }
+            clientes.forEach(c => {
+                const nombre = c.nombre_completo || c.nombre || '';
+                const cedula = c.cedula || '';
+                const telefono = c.telefono || '—';
+                const fecha = c.fecha || c.fecha_registro || c.created_at || '—';
+                const row = `
+                    <tr class="border-b hover:bg-gray-50">
+                        <td class="p-3">${nombre}</td>
+                        <td class="p-3">${cedula}</td>
+                        <td class="p-3">${telefono}</td>
+                        <td class="p-3">${fecha}</td>
+                        <td class="p-3">
+                            <button class="text-blue-500 hover:text-blue-700 mr-2"><i class="fas fa-eye"></i></button>
+                            <button class="text-yellow-500 hover:text-yellow-700"><i class="fas fa-edit"></i></button>
+                        </td>
+                    </tr>
+                `;
+                tableBody.innerHTML += row;
+            });
+        } catch (error) {
+            console.error('Error al cargar clientes:', error);
+            tableBody.innerHTML = '<tr><td colspan="5" class="text-center p-8 text-red-500">Error al cargar los datos.</td></tr>';
+        }
     }
     
     function getStatusBadge(status) {
@@ -596,13 +625,16 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
         prestamos.forEach(p => {
+            const cliente = p.cliente_nombre || p.clienteNombre || '';
+            const monto = parseFloat(p.monto_aprobado ?? p.monto ?? 0);
+            const fecha = p.fecha_solicitud || p.fecha || '';
             const row = `
                 <tr class="border-b hover:bg-gray-50">
                     <td class="p-3 font-mono">${p.id}</td>
-                    <td class="p-3">${p.clienteNombre}</td>
-                    <td class="p-3">$${parseFloat(p.monto).toLocaleString()}</td>
-                    <td class="p-3">${p.fecha}</td>
-                    <td class="p-3">${getStatusBadge(p.estado)}</td>
+                    <td class="p-3">${cliente}</td>
+                    <td class="p-3">$${monto.toLocaleString()}</td>
+                    <td class="p-3">${fecha}</td>
+                    <td class="p-3">${getStatusBadge(p.estado || '')}</td>
                     <td class="p-3 text-center">${getActionButtons(p)}</td>
                 </tr>
             `;
@@ -665,12 +697,18 @@ document.addEventListener('DOMContentLoaded', function () {
 
             if (response.ok) {
                 empleados.forEach(e => {
+                    const actionBtns = `
+                        <div class="flex items-center justify-center space-x-2">
+                            <button class="btn btn-secondary text-xs edit-emp" data-id="${e.id}"><i class="fas fa-pen"></i> Editar</button>
+                            <button class="btn btn-danger text-xs del-emp" data-id="${e.id}"><i class="fas fa-trash"></i> Eliminar</button>
+                        </div>`;
                     const row = `
                         <tr class="border-b hover:bg-gray-50">
                             <td class="p-3 font-semibold">${e.nombre}</td>
                             <td class="p-3 font-mono">${e.usuario}</td>
                             <td class="p-3 font-medium">${e.rol}</td>
                             <td class="p-3 text-sm text-gray-600">${e.descripcion || 'N/A'}</td>
+                            <td class="p-3">${actionBtns}</td>
                         </tr>
                     `;
                     tableBody.innerHTML += row;
@@ -681,7 +719,49 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    document.getElementById('cliente-search').addEventListener('input', (e) => renderClientesTable(e.target.value));
+    // Delegación para editar/eliminar empleados
+    document.getElementById('empleados-table-body').addEventListener('click', async (e) => {
+        const editBtn = e.target.closest('.edit-emp');
+        const delBtn = e.target.closest('.del-emp');
+        if (editBtn) {
+            const id = editBtn.dataset.id;
+            openEditEmployeeModal(id);
+            return;
+        }
+        if (delBtn) {
+            const id = delBtn.dataset.id;
+            if (!confirm('¿Está seguro de eliminar este empleado?')) return;
+            try {
+                const response = await fetch(`${API_URL}?action=delete_empleado&id=${id}`, { method: 'DELETE' });
+                const res = await response.json();
+                if (response.ok) {
+                    fetchAndRenderEmpleados();
+                } else {
+                    alert(res.message || 'No se pudo eliminar.');
+                }
+            } catch (err) {
+                alert('Error de conexión al eliminar.');
+            }
+        }
+    });
+
+    async function openEditEmployeeModal(id) {
+        try {
+            const response = await fetch(`${API_URL}?action=get_empleado&id=${id}`);
+            const emp = await response.json();
+            if (!response.ok) return alert(emp.message || 'No se pudo cargar el empleado');
+            // Prefill form
+            document.getElementById('edit_emp_id').value = emp.id;
+            document.getElementById('edit_emp_nombre').value = emp.nombre || '';
+            document.getElementById('edit_emp_usuario').value = emp.usuario || '';
+            document.getElementById('edit_emp_id_rol').value = emp.id_rol || '';
+            openModal('modal-edit-employee');
+        } catch (err) {
+            alert('Error de conexión al cargar empleado');
+        }
+    }
+
+    document.getElementById('cliente-search').addEventListener('input', (e) => fetchAndRenderClientes(e.target.value));
     document.getElementById('prestamo-search').addEventListener('input', (e) => fetchAndRenderPrestamos(e.target.value));
 
     const modals = document.querySelectorAll('.modal-backdrop');
@@ -724,7 +804,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 const result = await response.json();
                 if (response.ok) {
                     closeModal();
-                    renderClientesTable(); // Si tienes backend, actualiza para que use datos reales
+                    fetchAndRenderClientes();
                     showView('clientes');
                 } else {
                     alert('Error al guardar cliente: ' + (result.message || 'Error desconocido'));
@@ -753,6 +833,35 @@ document.addEventListener('DOMContentLoaded', function () {
         modal.addEventListener('click', (e) => {
             if (e.target === modal) closeModal();
         });
+    });
+
+    // Guardar cambios de empleado
+    document.getElementById('form-edit-employee').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const id = document.getElementById('edit_emp_id').value;
+        const payload = {
+            nombre: document.getElementById('edit_emp_nombre').value.trim(),
+            usuario: document.getElementById('edit_emp_usuario').value.trim(),
+            id_rol: parseInt(document.getElementById('edit_emp_id_rol').value, 10),
+        };
+        const pwd = document.getElementById('edit_emp_password').value;
+        if (pwd) payload.password = pwd;
+        try {
+            const response = await fetch(`${API_URL}?action=update_empleado&id=${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const res = await response.json();
+            if (response.ok) {
+                closeModal();
+                fetchAndRenderEmpleados();
+            } else {
+                alert(res.message || 'No se pudo guardar.');
+            }
+        } catch (err) {
+            alert('Error de conexión al guardar.');
+        }
     });
 
     const loanClienteSearch = document.getElementById('loan_cliente_search');
@@ -948,6 +1057,19 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
+    async function fetchDashboardSummary() {
+        try {
+            const res = await fetch(`${API_URL}?action=get_dashboard_summary`);
+            if (!res.ok) return;
+            const data = await res.json();
+            const fmt = (n) => new Intl.NumberFormat('es-DO', { maximumFractionDigits: 2 }).format(n || 0);
+            document.getElementById('kpi-capital').textContent = `$${fmt(data.total_prestado)}`;
+            document.getElementById('kpi-cobrado').textContent = `$${fmt(data.total_cobrado)}`;
+            document.getElementById('kpi-activos').textContent = `${fmt(data.prestamos_activos)}`;
+            document.getElementById('kpi-mora').textContent = `${fmt(data.clientes_en_mora)}`;
+        } catch (e) { /* noop */ }
+    }
+
     function initCharts() {
         // Los gráficos siguen usando datos estáticos por ahora.
         // Se pueden conectar al backend creando nuevos endpoints en api.php
@@ -1002,11 +1124,12 @@ document.addEventListener('DOMContentLoaded', function () {
         updateNavForRole();
         
         // Cargas iniciales de datos
-        renderClientesTable(); // Aún con mockData
+        fetchAndRenderClientes(); // Conectado al backend
         fetchAndRenderPrestamos(); // Conectado al backend
         renderPagosRecientesTable(); // Aún con mockData
         fetchAndRenderEmpleados(); // Ahora conectado al backend
-        initCharts(); // Aún con mockData
+        fetchDashboardSummary();
+        initCharts(); // Aún con datos estáticos
         showView('dashboard');
     }
 

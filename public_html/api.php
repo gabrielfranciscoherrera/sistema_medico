@@ -162,9 +162,19 @@ switch ($action) {
         $id = isset($_GET['id']) ? intval($_GET['id']) : 0;
         $clienteController->get($id);
         break;
+    case 'search_clientes':
+        if (!has_permission(['Admin', 'Gerente', 'Servicio al Cliente', 'Cajero'])) deny_access();
+        $term = isset($_GET['term']) ? $_GET['term'] : '';
+        $clienteController->search($term);
+        break;
     case 'create_cliente':
         if (!has_permission(['Admin', 'Servicio al Cliente'])) deny_access();
         $clienteController->create($data);
+        break;
+    case 'search_clientes':
+        if (!has_permission(['Admin', 'Gerente', 'Servicio al Cliente', 'Cajero'])) deny_access();
+        $term = isset($_GET['term']) ? $_GET['term'] : '';
+        $clienteController->search($term);
         break;
     case 'update_cliente':
         if (!has_permission(['Admin', 'Gerente', 'Servicio al Cliente'])) deny_access();
