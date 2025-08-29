@@ -1,89 +1,189 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Iniciar Sesión - PrestaSys</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="css/animations.css">  
+    <link rel="stylesheet" href="css/main.css">  
+    <link rel="stylesheet" href="css/login.css">
+        
+    <title>Login</title>
+
+    
+    
 </head>
-<body class="bg-gray-100 flex items-center justify-center h-screen">
+<body>
+    <?php
 
-    <div class="w-full max-w-md p-8 space-y-8 bg-white rounded-xl shadow-lg">
-        <div class="text-center">
-            <i class="fas fa-landmark text-4xl text-blue-600"></i>
-            <h1 class="mt-4 text-3xl font-bold text-gray-900">PrestaSys</h1>
-            
-        </div>
+    //learn from w3schools.com
+    //Unset all the server side variables
 
-        <form id="login-form" class="space-y-6">
-            <div class="relative">
-                <label for="usuario" class="sr-only">Usuario</label>
-                <span class="absolute inset-y-0 left-0 flex items-center pl-3">
-                    <i class="fas fa-user text-gray-400"></i>
-                </span>
-                <input id="usuario" name="usuario" type="text" required class="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Nombre de usuario">
-            </div>
+    session_start();
 
-            <div class="relative">
-                <label for="password" class="sr-only">Contraseña</label>
-                <span class="absolute inset-y-0 left-0 flex items-center pl-3">
-                    <i class="fas fa-lock text-gray-400"></i>
-                </span>
-                <input id="password" name="password" type="password" required class="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Contraseña">
-            </div>
+    $_SESSION["user"]="";
+    $_SESSION["usertype"]="";
+    
+    // Set the new timezone
+    date_default_timezone_set('Asia/Kolkata');
+    $date = date('Y-m-d');
 
-            <div>
-                <button type="submit" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                    Iniciar Sesión
-                </button>
-            </div>
-        </form>
-        <div id="error-message" class="hidden text-center text-sm text-red-600">
-        </div>
-    </div>
+    $_SESSION["date"]=$date;
+    
 
-    <script>
-        document.getElementById('login-form').addEventListener('submit', async function(e) {
-            e.preventDefault();
-            const usuario = document.getElementById('usuario').value.trim();
-            const password = document.getElementById('password').value.trim();
-            const errorMessage = document.getElementById('error-message');
+    //import database
+    include("connection.php");
 
-            // Validación simple en cliente
-            if (!usuario || !password) {
-                errorMessage.textContent = 'Usuario y contraseña son obligatorios.';
-                errorMessage.classList.remove('hidden');
-                return;
-            }
+    
 
-            try {
-                const response = await fetch('auth.php?action=login', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ usuario, password })
-                });
 
-                const result = await response.json();
 
-                if (response.ok) {
-                    window.location.href = 'index.php';
-                } else {
-                    errorMessage.textContent = result.message || 'Error al iniciar sesión.';
-                    errorMessage.classList.remove('hidden');
+    if($_POST){
+
+        $email=$_POST['useremail'];
+        $password=$_POST['userpassword'];
+        
+        $error='<label for="promter" class="form-label"></label>';
+
+        $result= $database->query("select * from webuser where email='$email'");
+        if($result->num_rows==1){
+            $utype=$result->fetch_assoc()['usertype'];
+            if ($utype=='p'){
+                //TODO
+                $checker = $database->query("select * from patient where pemail='$email' and ppassword='$password'");
+                if ($checker->num_rows==1){
+
+
+                    //   Patient dashbord
+                    $_SESSION['user']=$email;
+                    $_SESSION['usertype']='p';
+                    
+                    header('location: patient/index.php');
+
+                }else{
+                    $error='<label for="promter" class="form-label" style="color:rgb(255, 62, 62);text-align:center;">Wrong credentials: Invalid email or password</label>';
                 }
-            } catch (error) {
-                errorMessage.textContent = 'Error de conexión. Inténtalo de nuevo.';
-                errorMessage.classList.remove('hidden');
-            }
-        });
-    </script>
 
+            }elseif($utype=='a'){
+                //TODO
+                $checker = $database->query("select * from admin where aemail='$email' and apassword='$password'");
+                if ($checker->num_rows==1){
+
+
+                    //   Admin dashbord
+                    $_SESSION['user']=$email;
+                    $_SESSION['usertype']='a';
+                    
+                    header('location: admin/index.php');
+
+                }else{
+                    $error='<label for="promter" class="form-label" style="color:rgb(255, 62, 62);text-align:center;">Wrong credentials: Invalid email or password</label>';
+                }
+
+
+            }elseif($utype=='d'){
+                //TODO
+                $checker = $database->query("select * from doctor where docemail='$email' and docpassword='$password'");
+                if ($checker->num_rows==1){
+
+
+                    //   doctor dashbord
+                    $_SESSION['user']=$email;
+                    $_SESSION['usertype']='d';
+                    header('location: doctor/index.php');
+
+                }else{
+                    $error='<label for="promter" class="form-label" style="color:rgb(255, 62, 62);text-align:center;">Wrong credentials: Invalid email or password</label>';
+                }
+
+            }
+            
+        }else{
+            $error='<label for="promter" class="form-label" style="color:rgb(255, 62, 62);text-align:center;">We cant found any acount for this email.</label>';
+        }
+
+
+
+
+
+
+        
+    }else{
+        $error='<label for="promter" class="form-label">&nbsp;</label>';
+    }
+
+    ?>
+
+
+
+
+
+    <center>
+    <div class="container">
+        <table border="0" style="margin: 0;padding: 0;width: 60%;">
+            <tr>
+                <td>
+                    <p class="header-text">Welcome Back!</p>
+                </td>
+            </tr>
+        <div class="form-body">
+            <tr>
+                <td>
+                    <p class="sub-text">Login with your details to continue</p>
+                </td>
+            </tr>
+            <tr>
+                <form action="" method="POST" >
+                <td class="label-td">
+                    <label for="useremail" class="form-label">Email: </label>
+                </td>
+            </tr>
+            <tr>
+                <td class="label-td">
+                    <input type="email" name="useremail" class="input-text" placeholder="Email Address" required>
+                </td>
+            </tr>
+            <tr>
+                <td class="label-td">
+                    <label for="userpassword" class="form-label">Password: </label>
+                </td>
+            </tr>
+
+            <tr>
+                <td class="label-td">
+                    <input type="Password" name="userpassword" class="input-text" placeholder="Password" required>
+                </td>
+            </tr>
+
+
+            <tr>
+                <td><br>
+                <?php echo $error ?>
+                </td>
+            </tr>
+
+            <tr>
+                <td>
+                    <input type="submit" value="Login" class="login-btn btn-primary btn">
+                </td>
+            </tr>
+        </div>
+            <tr>
+                <td>
+                    <br>
+                    <label for="" class="sub-text" style="font-weight: 280;">Don't have an account&#63; </label>
+                    <a href="signup.php" class="hover-link1 non-style-link">Sign Up</a>
+                    <br><br><br>
+                </td>
+            </tr>
+                        
+                        
+    
+                        
+                    </form>
+        </table>
+
+    </div>
+</center>
 </body>
 </html>
